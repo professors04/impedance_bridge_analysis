@@ -1,0 +1,31 @@
+[project]
+name = "impedance-bridge-analysis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "ipykernel>=7.1.0",
+    "ipympl>=0.10.0",
+    "matplotlib>=3.10.7",
+    "netcdf4>=1.7.4",
+    "numpy>=2.3.4",
+    "pandas>=2.3.3",
+    "scikit-rf>=1.8.0",
+    "scipy>=1.16.2",
+    "xarray>=2026.1.0",
+    "zarr>=2.18.4",
+]
+
+[tool.uv.workspace]
+members = [
+    ".",
+]
+
+[tool.uv] 
+package = true
+
+[dependency-groups]
+dev = [
+    "impedance_bridge_analysis",
+]
