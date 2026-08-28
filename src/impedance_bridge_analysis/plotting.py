@@ -168,7 +168,7 @@ class Plotter:
 
 
         size = size_scale(size_factor, base_size=(16/2.54,7/2.54))
-        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True, sharey=True)
+        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True, sharey=True, constrained_layout=True)
 
         if log_scale:
             c_r = ax[0].pcolormesh(phase_dif, lockin_amp_ref, v_out_r, norm=LogNorm(), shading='auto', cmap='viridis')
@@ -200,8 +200,6 @@ class Plotter:
             print(f"min v_out_r: {np.min(v_out_r)*1e3:.2f} uV")
 
 
-        plt.tight_layout()
-
         if save_path is not None:
             plt.savefig(cwd + save_path, dpi=300)
 
@@ -217,7 +215,7 @@ class Plotter:
 
 
         size = size_scale(size_factor, base_size=(16/2.54,7/2.54))
-        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True)
+        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True, constrained_layout=True)
 
         ax[0].plot(f, v_out_r)
         ax[1].plot(f, v_out_p)
@@ -239,8 +237,6 @@ class Plotter:
             ax[0].plot(x_min, y_min, "rx", markersize=12, markeredgewidth=3, label="balance point\n" + f"({x_min:.2f} kHz, {y_min*1e3:.3f} uV)")
 
             ax[0].legend(loc="upper right")
-        
-        plt.tight_layout()
 
         if save_path is not None:
             plt.savefig(cwd + save_path, dpi=300)
@@ -271,7 +267,7 @@ class Plotter:
         
 
         size = size_scale(size_factor, base_size=(8/2.54,7/2.54))
-        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=1)
+        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=1, constrained_layout=True)
 
         ax.scatter(dut_bias, np.array(C)*1e12, color='blue', label='Data points')
 
@@ -291,8 +287,6 @@ class Plotter:
         ax.set_ylabel(r"$C$ [pF]")
 
         ax.grid()
-        
-        plt.tight_layout()
 
         if save_path is not None:
             plt.savefig(cwd + save_path, dpi=300)
@@ -300,7 +294,7 @@ class Plotter:
         plt.show()
 
 
-    def lockin_ref_phase_dut_bias_3d_sweep(self, data_list: list[xr.Dataset], size_factor: float = 1, save_path: str = None, R_ref=27e3, fit: bool = False) -> None:
+    def lockin_ref_phase_dut_bias_3d_sweep(self, data_list: list[xr.Dataset], size_factor: float = 1, save_path: str = None, R_ref=27e3, fit: bool = False, add_sim: str = None) -> None:
         
         calc = bridge_calculation(R_ref=R_ref)
 
@@ -323,9 +317,9 @@ class Plotter:
         
 
         size = size_scale(size_factor, base_size=(11/2.54,5/2.54))
-        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True)
+        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True, constrained_layout=True)
 
-        ax[0].scatter(V_bias, np.array(C_list)*1e12)
+        ax[0].scatter(V_bias, np.array(C_list)*1e12, label = "Data points")
         ax[1].scatter(V_bias, np.array(R_list)/1e6)
 
         if fit:
@@ -338,7 +332,16 @@ class Plotter:
                 rf"Fit: $C(V) = \frac{{{popt[0]:.2f}}}"
                 rf"{{\left(1 + \frac{{V}}{{{popt[1]:.2f}}}\right)^{{{popt[2]:.2f}}}}}$ [pF]"
             ))
-            ax[0].legend()
+
+        if add_sim is not None:
+            data = np.loadtxt(add_sim)
+
+            V_bias = data[:, 0]
+            C_tot = data[:, 1]
+
+            ax[0].plot(V_bias, C_tot, "o--",color='green', alpha=0.6,  label = "Simulation")
+
+        ax[0].legend(fontsize=8)
 
         for i in [0,1]:
             ax[i].set_xlabel(r"$V_\text{bias}$ [V]")
@@ -347,10 +350,44 @@ class Plotter:
         ax[0].set_ylabel(r"$C$ [pF]")
         ax[1].set_ylabel(r"$R$ [$M\Omega$]")
         
-        ax[0].set_title("DUT Impedance vs DUT Bias Voltage @ " + f"{f_lockin/1e3:.2f} kHz" + f" @ {T:.2f} K", loc="center", fontsize=12)
-        plt.tight_layout()
+        #ax[0].set_title("DUT Impedance vs DUT Bias Voltage @ " + f"{f_lockin/1e3:.2f} kHz" + f" @ {T:.2f} K", loc="center", fontsize=12)
 
         if save_path is not None:
             plt.savefig(cwd + save_path, dpi=300)
         
+        plt.show()
+
+    
+    def lockin_ref_gate_sweep(self, data: xr.Dataset, gate_label: str, log_scale: bool = False, y_factor = 1e3, size_factor: float = 1, save_path: str = None) -> None:
+        
+        gate_voltage = data[gate_label].values
+        lockin_amp_ref = data["lockin_amplitude_ref"].values *y_factor # convert to xV
+        
+        v_out_p = data["v_out_p"].transpose("lockin_amplitude_ref", gate_label)
+        v_out_r = data["v_out_r"].transpose("lockin_amplitude_ref", gate_label) *y_factor # convert to xV
+
+        si_prefix = prefix(y_factor)
+
+
+
+        size = size_scale(size_factor, base_size=(16/2.54,7/2.54))
+        fig, ax = plt.subplots(figsize=size, nrows=1, ncols=2, sharex=True, sharey=True, constrained_layout=True)
+
+        if log_scale:
+            c_r = ax[0].pcolormesh(gate_voltage, lockin_amp_ref, v_out_r, norm=LogNorm(), shading='auto', cmap='viridis')
+        else:
+            c_r = ax[0].pcolormesh(gate_voltage, lockin_amp_ref, v_out_r, shading='auto', cmap='viridis')
+        c_p = ax[1].pcolormesh(gate_voltage, lockin_amp_ref, v_out_p, shading='auto', cmap='viridis')
+
+        fig.colorbar(c_r, ax=ax[0], label=r"$v_\text{out amp}$" + f" [{si_prefix}V]")
+        fig.colorbar(c_p, ax=ax[1], label=r"$v_\text{out phase}$ [deg]")
+
+        for i in [0,1]:
+            ax[i].set_xlabel(f"{gate_label} [V]")
+        ax[0].set_ylabel(r"$v_\text{ref amp}$" + f" [{si_prefix}V]")
+
+
+        if save_path is not None:
+            plt.savefig(cwd + save_path, dpi=300)
+
         plt.show()
